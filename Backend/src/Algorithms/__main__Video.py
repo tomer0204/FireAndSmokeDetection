@@ -8,9 +8,11 @@ from Backend.src.Algorithms.OpticalFlowFarneback.OpticalFlowVideo import (
 )
 from Backend.src.Algorithms.WaveletTransform.WaveletVideo import wavelet_mask_frame
 
-VIDEO_PATH = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire_video9.mov"
+VIDEO_PATH = (
+    "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire5.avi"
+)
 OUTPUT_PREFIX = "video_file"
-QWAVE = 0.9
+QWAVE = 0.7
 QGRAD = 0.9
 FPS = 17
 SHOW = True
@@ -121,7 +123,7 @@ def main():
         panel = three_panel(
             label(frame, "Original"),
             label(m_color, "Color"),
-            label(m_wave, "wavelet"),
+            label(mask_div, "divergence"),
         )
         out_panel.write(panel)
 

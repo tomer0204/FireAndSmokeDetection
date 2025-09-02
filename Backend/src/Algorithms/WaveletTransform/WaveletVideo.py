@@ -8,7 +8,7 @@ def wavelet_mask_frame(gray, pct=0.9, mask=None):
     if mask is not None:
         gray = cv2.bitwise_and(gray, gray, mask=mask)
 
-    cA, (cH, cV, cD) = pywt.dwt2(gray.astype(np.float32), "db2")
+    cA, (cH, cV, cD) = pywt.dwt2(gray.astype(np.float32), "db8")
     s = np.abs(cH) + np.abs(cV) + np.abs(cD)
     s = cv2.resize(s, (gray.shape[1], gray.shape[0]))
     s = s / (s.max() + 1e-6)

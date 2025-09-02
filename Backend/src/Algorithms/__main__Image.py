@@ -23,7 +23,6 @@ def main():
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     m_grad = gradient_mask_frame_image(gray, pct=0.9)
-    lbp =
     m_color = color_mask_frame_image(img)
     panel = two_panel(img, m_color)
     cv2.imshow("Gradient Detection", panel)
