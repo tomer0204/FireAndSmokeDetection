@@ -1,19 +1,29 @@
 import cv2
 import numpy as np
 
-from Backend.src.Algorithms.ColorSpace.ColorSpaceFireVideo import color_mask_frame
-from Backend.src.Algorithms.Gradient.gradientVideo import gradient_mask_frame
-from Backend.src.Algorithms.OpticalFlowFarneback.OpticalFlowVideo import (
+from Backend.src.FireDetection.Algorithms.ColorSpace.ColorSpaceFireVideo import (
+    color_mask_frame,
+)
+from Backend.src.FireDetection.Algorithms.Gradient.gradientVideo import (
+    gradient_mask_frame,
+)
+from Backend.src.FireDetection.Algorithms.HOG.HOG_Fire import hog_fire_detection
+from Backend.src.FireDetection.Algorithms.OpticalFlow.FarnebackVideo import (
     compute_optical_flow_and_divergence,
 )
-from Backend.src.Algorithms.WaveletTransform.WaveletVideo import wavelet_mask_frame
+from Backend.src.FireDetection.Algorithms.OpticalFlow.LucasKanadeVideo import (
+    lucas_kanade_optical_flow_with_divergence,
+)
+from Backend.src.FireDetection.Algorithms.WaveletTransform.WaveletFireVideo import (
+    wavelet_mask_frame,
+)
 
 VIDEO_PATH = (
-    "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire5.avi"
+    "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire10.avi"
 )
 OUTPUT_PREFIX = "video_file"
 QWAVE = 0.7
-QGRAD = 0.9
+QGRAD = 0.95
 FPS = 17
 SHOW = True
 CODEC = "mp4v"
@@ -65,6 +75,9 @@ def main():
     out_opticalflow = cv2.VideoWriter(
         OUTPUT_PREFIX + "_opticalflow.mp4", fourcc, FPS, (w, h), True
     )
+    out_opticalflow_lk = cv2.VideoWriter(
+        OUTPUT_PREFIX + "_opticalflow_lk.mp4", fourcc, FPS, (w, h), True
+    )
     out_wave = cv2.VideoWriter(
         OUTPUT_PREFIX + "_wavelet.mp4", fourcc, FPS, (w, h), False
     )
@@ -98,15 +111,24 @@ def main():
         m_wave = wavelet_mask_frame(gray, QWAVE)
         m_grad = gradient_mask_frame(gray, QGRAD)
 
+        detected_hog, m_hog = hog_fire_detection(frame)
+
         mask_div = np.zeros_like(gray, dtype=np.uint8)
 
         if prev_gray is not None:
             flow, divergence, mask_div = compute_optical_flow_and_divergence(
-                prev_gray, gray, threshold=2.0
+                prev_gray, gray, threshold=3.5
             )
-            opticalflow_vectors = cv2.cvtColor(mask_div, cv2.COLOR_GRAY2BGR)
+
+            u, v, divergence_raw, divergence_norm = (
+                lucas_kanade_optical_flow_with_divergence(
+                    prev_gray, gray, window_size=5, step=5
+                )
+            )
+            opticalflow_lk = cv2.applyColorMap(divergence_norm, cv2.COLOR_BGR2GRAY)
+
         else:
-            opticalflow_vectors = frame.copy()
+            opticalflow_lk = frame.copy()
 
         m_color_gradient = cv2.bitwise_and(m_color, m_grad)
         m_color_wavelet = cv2.bitwise_and(m_wave, m_color)
@@ -116,14 +138,14 @@ def main():
         out_color.write(m_color)
         out_wave.write(m_wave)
         out_grad.write(m_grad)
-        out_opticalflow.write(opticalflow_vectors)
+        out_opticalflow_lk.write(opticalflow_lk)
         out_mask.write(m_color_gradient)
         out_vis.write(vis_mid)
 
         panel = three_panel(
             label(frame, "Original"),
-            label(m_color, "Color"),
-            label(mask_div, "divergence"),
+            label(m_color, "colorSpace"),
+            label(m_wave, "divergence"),
         )
         out_panel.write(panel)
 
@@ -142,6 +164,7 @@ def main():
     out_vis.release()
     out_panel.release()
     out_opticalflow.release()
+    out_opticalflow_lk.release()
     if SHOW:
         cv2.destroyAllWindows()
 

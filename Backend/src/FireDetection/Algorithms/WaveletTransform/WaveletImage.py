@@ -52,7 +52,7 @@ def tile_stats_and_draw(img, energy_01, tile=2):
     return out
 
 
-path = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Image/Train/-88471_png.rf.7198f2ce1284a4f992d73430cba56fa7.jpg"
+path = "/Backend/Dataset/Image/Train/-88471_png.rf.7198f2ce1284a4f992d73430cba56fa7.jpg"
 img = cv2.imread(path)
 if img is None:
     raise FileNotFoundError(path)

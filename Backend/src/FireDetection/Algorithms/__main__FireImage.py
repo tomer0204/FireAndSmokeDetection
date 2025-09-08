@@ -1,8 +1,12 @@
 import cv2
 import numpy as np
 
-from Backend.src.Algorithms.ColorSpace.colorSpaceImage import color_mask_frame_image
-from Backend.src.Algorithms.Gradient.gradientImage import gradient_mask_frame_image
+from Backend.src.FireDetection.Algorithms.ColorSpace.colorSpaceImage import (
+    color_mask_frame_image,
+)
+from Backend.src.FireDetection.Algorithms.Gradient.gradientImage import (
+    gradient_mask_frame_image,
+)
 
 
 def two_panel(left, right):
@@ -16,7 +20,7 @@ def two_panel(left, right):
 
 
 def main():
-    IMAGE_PATH = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Image/Train/bothFireAndSmoke_CV004377.jpg"
+    IMAGE_PATH = "/Backend/Dataset/Image/Train/bothFireAndSmoke_CV004377.jpg"
     img = cv2.imread(IMAGE_PATH)
     if img is None:
         raise RuntimeError(f"cannot open image: {IMAGE_PATH}")
