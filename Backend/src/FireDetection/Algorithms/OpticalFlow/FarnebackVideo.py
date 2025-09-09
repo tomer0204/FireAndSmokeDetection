@@ -3,7 +3,7 @@ import numpy as np
 
 
 def compute_optical_flow_and_divergence(prev_gray, gray, threshold=2.0):
-    flow = cv.calcOpticalFlowFarneback(prev_gray, gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    flow = cv.calcOpticalFlowFarneback(prev_gray, gray, None, 0.95, 10, 9, 20, 5, 2, 0)
 
     u = flow[..., 0]
     v = flow[..., 1]
