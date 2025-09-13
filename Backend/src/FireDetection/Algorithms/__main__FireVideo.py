@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+from Backend.src.FireDetection.Algorithms.BeysianFusion.Fusion import fuse_and_draw
 from Backend.src.FireDetection.Algorithms.ColorSpace.ColorSpaceFireVideo import (
     color_mask_frame,
 )
@@ -12,20 +13,15 @@ from Backend.src.FireDetection.Algorithms.HOG.HOG_Fire import hog_fire_detection
 from Backend.src.FireDetection.Algorithms.OpticalFlow.FarnebackVideo import (
     compute_optical_flow_and_divergence,
 )
-from Backend.src.FireDetection.Algorithms.OpticalFlow.LucasKanadeVideo import (
-    lucas_kanade_optical_flow_with_divergence,
-)
 from Backend.src.FireDetection.Algorithms.WaveletTransform.WaveletFireVideo import (
     wavelet_mask_frame,
 )
 
-VIDEO_PATH = (
-    "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire1.avi"
-)
+VIDEO_PATH = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire_video10.mov"
 OUTPUT_PREFIX = "video_file"
 QWAVE = 0.9
-QGRAD = 0.95
-FPS = 120
+QGRAD = 0.9
+FPS = 17
 SHOW = True
 CODEC = "mp4v"
 
@@ -78,41 +74,46 @@ def main():
             break
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        mask_div = frame.copy()
+
         m_color = color_mask_frame(frame)
         m_grad = gradient_mask_frame(gray, QGRAD)
-
-        detected_hog, m_hog = hog_fire_detection(frame)
-
-        detected_fft, m_fft = fft_detector.update(frame)
+        _, m_hog = hog_fire_detection(frame)
+        _, m_fft = fft_detector.update(frame)
 
         masks = wavelet_mask_frame(gray, pct=QWAVE, levels=(1, 2, 3))
-        m_wave1 = masks[1]
-        m_wave2 = masks[2]
         m_wave3 = masks[3]
 
         if prev_gray is not None:
-            flow, divergence, mask_div = compute_optical_flow_and_divergence(
+            _, _, m_div = compute_optical_flow_and_divergence(
                 prev_gray, gray, threshold=5
             )
-            u, v, divergence_raw, divergence_norm = (
-                lucas_kanade_optical_flow_with_divergence(
-                    prev_gray, gray, window_size=17, step=5
-                )
-            )
-            opticalflow_lk = cv2.applyColorMap(divergence_norm, cv2.COLOR_BGR2GRAY)
         else:
-            opticalflow_lk = frame.copy()
+            m_div = np.zeros_like(gray)
+
+        #  Fusion + BBoxes
+        fused_mask, out_bbox = fuse_and_draw(
+            frame,
+            m_div,
+            m_wave3,
+            m_color,
+            m_grad,
+            w_div=0.2,
+            w_wave=0.2,
+            w_color=0.4,
+            w_grad=0.2,
+            thresh=0.6,
+        )
 
         panel = three_panel(
             label(frame, "Original"),
-            label(m_color, "divergence"),
-            label(m_wave3, "Wavelet L3"),
+            label(fused_mask, "Fused Mask"),
+            label(m_color, "color"),
         )
         out_panel.write(panel)
 
         if SHOW:
             cv2.imshow("panel", panel)
+            # cv2.imshow("gradient", m_grad)
             if cv2.waitKey(int(1000 / FPS)) & 0xFF == ord("q"):
                 break
 

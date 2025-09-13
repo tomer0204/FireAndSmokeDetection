@@ -1,23 +1,50 @@
+import cv2
 import numpy as np
 
 
-def fuse_probabilities(method, probs, weights=None, eps=1e-6):
-    stacked = np.stack(probs, axis=-1).astype(np.float32)
+def fuse_and_draw(
+    frame,
+    m_div,
+    m_wave,
+    m_color,
+    m_grad,
+    w_div=0.3,
+    w_wave=0.3,
+    w_color=0.2,
+    w_grad=0.2,
+    thresh=0.5,
+):
+    m_div = cv2.resize((m_div > 0).astype(np.float32), (frame.shape[1], frame.shape[0]))
+    m_wave = cv2.resize(
+        (m_wave > 0).astype(np.float32), (frame.shape[1], frame.shape[0])
+    )
+    m_color = cv2.resize(
+        (m_color > 0).astype(np.float32), (frame.shape[1], frame.shape[0])
+    )
+    m_grad = cv2.resize(
+        (m_grad > 0).astype(np.float32), (frame.shape[1], frame.shape[0])
+    )
 
-    if method == "mean":
-        return np.mean(stacked, axis=-1)
+    fused = w_div * m_div + w_wave * m_wave + w_color * m_color + w_grad * m_grad
+    fused_mask = (fused >= thresh).astype(np.uint8) * 255
 
-    elif method == "product":
-        stacked = np.clip(stacked, eps, 1.0)
-        return np.prod(stacked, axis=-1)
+    contours, _ = cv2.findContours(
+        fused_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
-    elif method == "weighted":
-        if weights is None:
-            weights = np.ones(len(probs), dtype=np.float32) / float(len(probs))
-        else:
-            weights = np.array(weights, dtype=np.float32)
-            weights = weights / (np.sum(weights) + eps)
-        return np.tensordot(stacked, weights, axes=([-1], [0]))
+    out_bbox = frame.copy()
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        if w * h > 150:  # סינון רעשים קטנים
+            cv2.rectangle(out_bbox, (x, y), (x + w, y + h), (0, 0, 255), 2)
+            cv2.putText(
+                out_bbox,
+                "FIRE",
+                (x, y - 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 0, 255),
+                2,
+            )
 
-    else:
-        raise ValueError("Unknown fusion method")
+    return fused_mask, out_bbox
