@@ -3,9 +3,8 @@ import numpy as np
 
 from Backend.src.FireDetection.Algorithms.BeysianFusion.Fusion import fuse_and_draw
 from Backend.src.FireDetection.Algorithms.ColorSpace.ColorSpaceFireVideo import (
-    color_mask_frame,
+    color_prob_map_ycrcb,
 )
-from Backend.src.FireDetection.Algorithms.FFT.FFT_FireVideo import FFTFireDetector
 from Backend.src.FireDetection.Algorithms.Gradient.gradientVideo import (
     gradient_mask_frame,
 )
@@ -17,10 +16,12 @@ from Backend.src.FireDetection.Algorithms.WaveletTransform.WaveletFireVideo impo
     wavelet_mask_frame,
 )
 
-VIDEO_PATH = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire_video10.mov"
+VIDEO_PATH = (
+    "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire12.avi"
+)
 OUTPUT_PREFIX = "video_file"
-QWAVE = 0.9
-QGRAD = 0.9
+QWAVE = 0.95
+QGRAD = 0.95
 FPS = 17
 SHOW = True
 CODEC = "mp4v"
@@ -64,9 +65,6 @@ def main():
         cv2.resizeWindow("panel", min(1280, w * 3), min(720, h))
 
     prev_gray = None
-    fft_detector = FFTFireDetector(
-        fps=FPS, window_size=17, freq_band=(2, 7), power_thresh=0.7
-    )
 
     while True:
         ok, frame = cap.read()
@@ -75,10 +73,12 @@ def main():
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        m_color = color_mask_frame(frame)
+        prob_map = color_prob_map_ycrcb(frame)
+        prob_gray = (prob_map * 255).astype(np.uint8)
+        prob_heat = cv2.applyColorMap(prob_gray, cv2.COLORMAP_JET)
+
         m_grad = gradient_mask_frame(gray, QGRAD)
         _, m_hog = hog_fire_detection(frame)
-        _, m_fft = fft_detector.update(frame)
 
         masks = wavelet_mask_frame(gray, pct=QWAVE, levels=(1, 2, 3))
         m_wave3 = masks[3]
@@ -90,30 +90,28 @@ def main():
         else:
             m_div = np.zeros_like(gray)
 
-        #  Fusion + BBoxes
         fused_mask, out_bbox = fuse_and_draw(
             frame,
             m_div,
             m_wave3,
-            m_color,
+            prob_gray,
             m_grad,
             w_div=0.2,
-            w_wave=0.2,
-            w_color=0.4,
-            w_grad=0.2,
-            thresh=0.6,
+            w_wave=0.25,
+            w_color=0.5,
+            w_grad=0.05,
+            thresh=0.7,
         )
 
         panel = three_panel(
             label(frame, "Original"),
-            label(fused_mask, "Fused Mask"),
-            label(m_color, "color"),
+            label(prob_heat, "YCrCb Prob Heatmap"),
+            label(fused_mask, "Fusion"),
         )
         out_panel.write(panel)
 
         if SHOW:
             cv2.imshow("panel", panel)
-            # cv2.imshow("gradient", m_grad)
             if cv2.waitKey(int(1000 / FPS)) & 0xFF == ord("q"):
                 break
 

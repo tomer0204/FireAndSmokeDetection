@@ -2,23 +2,28 @@ import cv2
 import numpy as np
 
 
-def color_mask_frame(bgr):
-
-    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-
-    v_norm = cv2.equalizeHist(v)
-    hsv_norm = cv2.merge([h, s, v_norm])
-
-    lower_fire1 = np.array([18, 80, 80], np.uint8)
-    upper_fire1 = np.array([50, 255, 255], np.uint8)
-    mask_hsv = cv2.inRange(hsv_norm, lower_fire1, upper_fire1)
-
+def color_prob_map_ycrcb(bgr):
     ycrcb = cv2.cvtColor(bgr, cv2.COLOR_BGR2YCrCb)
-    lower_fire_ycrcb = np.array([80, 150, 20], np.uint8)
-    upper_fire_ycrcb = np.array([255, 200, 120], np.uint8)
-    mask_ycrcb = cv2.inRange(ycrcb, lower_fire_ycrcb, upper_fire_ycrcb)
+    y, cr, cb = cv2.split(ycrcb)
 
-    result = cv2.bitwise_and(mask_hsv, mask_ycrcb)
+    # טווחי האש (כמו שהגדרת)
+    y_min, y_max = 80, 255
+    cr_min, cr_max = 150, 200
+    cb_min, cb_max = 20, 120
 
-    return result
+    def channel_prob(channel, cmin, cmax):
+        # בתוך הטווח = הסתברות גבוהה יותר ככל שקרוב לאמצע
+        c_center = (cmin + cmax) / 2
+        c_range = (cmax - cmin) / 2
+        prob = 1 - np.abs(channel - c_center) / c_range
+        prob = np.clip(prob, 0, 1)
+        return prob
+
+    prob_y = channel_prob(y, y_min, y_max)
+    prob_cr = channel_prob(cr, cr_min, cr_max)
+    prob_cb = channel_prob(cb, cb_min, cb_max)
+
+    #  מכפלה = פיקסל חייב להתאים לכל הערוצים כדי לקבל הסתברות גבוהה
+    prob_map = prob_y * prob_cr * prob_cb
+
+    return prob_map
