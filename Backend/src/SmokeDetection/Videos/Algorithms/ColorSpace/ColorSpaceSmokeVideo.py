@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 
-def color_mask_frame_image(bgr):
+def color_mask_frame(bgr):
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     lower_fire1 = np.array([18, 50, 50], np.uint8)
     upper_fire1 = np.array([50, 255, 255], np.uint8)

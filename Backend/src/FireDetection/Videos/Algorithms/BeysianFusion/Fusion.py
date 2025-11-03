@@ -35,7 +35,7 @@ def fuse_and_draw(
     out_bbox = frame.copy()
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if w * h > 150:  # סינון רעשים קטנים
+        if w * h > 150:
             cv2.rectangle(out_bbox, (x, y), (x + w, y + h), (0, 0, 255), 2)
             cv2.putText(
                 out_bbox,

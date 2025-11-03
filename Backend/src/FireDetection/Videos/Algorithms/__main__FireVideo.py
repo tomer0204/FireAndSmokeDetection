@@ -1,24 +1,24 @@
 import cv2
 import numpy as np
 
-from Backend.src.FireDetection.Algorithms.BeysianFusion.Fusion import fuse_and_draw
-from Backend.src.FireDetection.Algorithms.ColorSpace.ColorSpaceFireVideo import (
+from Backend.src.FireDetection.Images.Algorithms.HOG.HOG_Image import hog_fire_detection
+from Backend.src.FireDetection.Videos.Algorithms.BeysianFusion.Fusion import (
+    fuse_and_draw,
+)
+from Backend.src.FireDetection.Videos.Algorithms.ColorSpace.ColorSpaceFireVideo import (
     color_prob_map_ycrcb,
 )
-from Backend.src.FireDetection.Algorithms.Gradient.gradientVideo import (
+from Backend.src.FireDetection.Videos.Algorithms.Gradient.gradientVideo import (
     gradient_mask_frame,
 )
-from Backend.src.FireDetection.Algorithms.HOG.HOG_Fire import hog_fire_detection
-from Backend.src.FireDetection.Algorithms.OpticalFlow.FarnebackVideo import (
+from Backend.src.FireDetection.Videos.Algorithms.OpticalFlow.FarnebackVideo import (
     compute_optical_flow_and_divergence,
 )
-from Backend.src.FireDetection.Algorithms.WaveletTransform.WaveletFireVideo import (
+from Backend.src.FireDetection.Videos.Algorithms.WaveletTransform.WaveletFireVideo import (
     wavelet_mask_frame,
 )
 
-VIDEO_PATH = (
-    "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Dataset/Video/Train/fire12.avi"
-)
+VIDEO_PATH = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Datasets/DatasetVideos/Video/Train/fire14.avi"
 OUTPUT_PREFIX = "video_file"
 QWAVE = 0.95
 QGRAD = 0.95
@@ -105,8 +105,8 @@ def main():
 
         panel = three_panel(
             label(frame, "Original"),
-            label(prob_heat, "YCrCb Prob Heatmap"),
             label(fused_mask, "Fusion"),
+            label(prob_heat, " YCrCb Prob Heatmap"),
         )
         out_panel.write(panel)
 
