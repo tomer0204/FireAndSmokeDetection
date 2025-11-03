@@ -53,7 +53,7 @@ def read_fire_bboxes_yolo(label_path, class_id_target, img_shape):
     return boxes
 
 
-def extract_pred_bboxes_from_mask(mask, min_area_ratio=0.0003):
+def extract_pred_bboxes_from_mask(mask, min_area_ratio=0.01):
     H, W = mask.shape[:2]
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     boxes = []
@@ -79,38 +79,49 @@ def bbox_iou(boxA, boxB):
     return iou, interArea, boxAArea, boxBArea
 
 
-def compute_bbox_metrics(pred_boxes, gt_boxes, iou_thresh=0.3, cov_thresh=0.7):
+def compute_bbox_metrics(pred_boxes, gt_boxes, iou_thresh=0.5, cov_thresh=0.5):
     if len(gt_boxes) == 0:
         return None
     if len(pred_boxes) == 0:
         return 0, 0, 0, 0, 0, 0
-    matched_gt = set()
+
+    pairs = []
+    for i, p in enumerate(pred_boxes):
+        for j, g in enumerate(gt_boxes):
+            iou, inter, area_p, area_g = bbox_iou(p, g)
+            cov = inter / (area_g + 1e-6)
+            adj = inter / (area_g + 0.5 * (area_p - inter) + 1e-6)
+            score = max(iou, cov)
+            if iou >= iou_thresh or cov >= cov_thresh:
+                pairs.append((score, i, j, iou, cov, adj))
+
+    pairs.sort(key=lambda x: x[0], reverse=True)
+
     matched_pred = set()
-    iou_list, cov_list, adj_list = [], [], []
-    for i, pbox in enumerate(pred_boxes):
-        best_iou, best_cov, best_adj = 0, 0, 0
-        best_j = None
-        for j, gbox in enumerate(gt_boxes):
-            iou, inter, area_p, area_g = bbox_iou(pbox, gbox)
-            coverage = inter / (area_g + 1e-6)
-            adj_iou = inter / (area_g + 0.5 * (area_p - inter) + 1e-6)
-            if iou > best_iou:
-                best_iou, best_cov, best_adj, best_j = iou, coverage, adj_iou, j
-        if best_iou >= iou_thresh or best_cov >= cov_thresh:
-            matched_pred.add(i)
-            matched_gt.add(best_j)
-            iou_list.append(best_iou)
-            cov_list.append(best_cov)
-            adj_list.append(best_adj)
+    matched_gt = set()
+    ious, covs, adjs = [], [], []
+
+    for score, i, j, iou, cov, adj in pairs:
+        if i in matched_pred or j in matched_gt:
+            continue
+        matched_pred.add(i)
+        matched_gt.add(j)
+        ious.append(iou)
+        covs.append(cov)
+        adjs.append(adj)
+
     tp = len(matched_pred)
     fp = len(pred_boxes) - tp
     fn = len(gt_boxes) - tp
+
     precision = tp / (tp + fp + 1e-6)
     recall = tp / (tp + fn + 1e-6)
     f1 = 2 * precision * recall / (precision + recall + 1e-6)
-    mean_iou = np.mean(iou_list) if iou_list else 0
-    mean_cov = np.mean(cov_list) if cov_list else 0
-    mean_adj = np.mean(adj_list) if adj_list else 0
+
+    mean_iou = float(np.mean(ious)) if ious else 0.0
+    mean_cov = float(np.mean(covs)) if covs else 0.0
+    mean_adj = float(np.mean(adjs)) if adjs else 0.0
+
     return mean_cov, recall, precision, mean_iou, mean_adj, f1
 
 
@@ -119,23 +130,29 @@ def evaluate_bbox_level(dataset_path, yaml_path, q_wave=0.9, q_grad=0.9):
     images_dir = os.path.join(dataset_path, "test", "images")
     labels_dir = os.path.join(dataset_path, "test", "labels")
     results = []
+
     print(f"\nEvaluating dataset at: {dataset_path}")
     print(f"Fire class id detected from YAML: {fire_class_id}")
+
     for image_path in glob.glob(os.path.join(images_dir, "*.jpg")):
         frame = cv2.imread(image_path)
         if frame is None:
             continue
+
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         base = os.path.splitext(os.path.basename(image_path))[0]
         label_path = os.path.join(labels_dir, base + ".txt")
+
         gt_boxes = read_fire_bboxes_yolo(label_path, fire_class_id, frame.shape)
         if not gt_boxes:
             continue
+
         prob_map = color_prob_map_ycrcb(frame)
         m_color = color_mask_frame_image(frame)
         m_grad = gradient_mask_frame_image(gray, q_grad)
         masks = wavelet_mask_frame(gray, pct=q_wave, levels=(1, 2))
         m_wave2 = masks[2]
+
         fused_mask, _ = fuse_and_draw_image(
             frame,
             m_wave2,
@@ -146,15 +163,19 @@ def evaluate_bbox_level(dataset_path, yaml_path, q_wave=0.9, q_grad=0.9):
             w_grad=0.2,
             thresh=None,
         )
+
         pred_boxes = extract_pred_bboxes_from_mask(fused_mask)
         metrics = compute_bbox_metrics(pred_boxes, gt_boxes)
         if metrics:
             results.append(metrics)
+
     if not results:
         print("No valid fire samples found in dataset.")
         return
+
     arr = np.array(results)
     mean_results = tuple(np.mean(arr, axis=0))
+
     print("\nBounding Box Evaluation (fire only)")
     print("Metric\t\tCoverage\tRecall\tPrecision\tIoU\tAdjIoU\tF1")
     print("-" * 85)
