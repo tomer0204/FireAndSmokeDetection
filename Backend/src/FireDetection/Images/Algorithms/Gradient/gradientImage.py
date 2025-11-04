@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 
-def gradient_mask_frame_image(gray, pct=0.7):
+def gradient_mask_frame_image(gray, pct=0.9):
     gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
     gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
     mag = cv2.magnitude(gx, gy)

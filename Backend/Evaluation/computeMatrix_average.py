@@ -79,7 +79,7 @@ def bbox_iou(boxA, boxB):
     return iou, interArea, boxAArea, boxBArea
 
 
-def compute_bbox_metrics(pred_boxes, gt_boxes, iou_thresh=0.5, cov_thresh=0.5):
+def compute_bbox_metrics(pred_boxes, gt_boxes, iou_thresh=0.5, cov_thresh=0.7):
     if len(gt_boxes) == 0:
         return None
     if len(pred_boxes) == 0:
@@ -127,8 +127,8 @@ def compute_bbox_metrics(pred_boxes, gt_boxes, iou_thresh=0.5, cov_thresh=0.5):
 
 def evaluate_bbox_level(dataset_path, yaml_path, q_wave=0.9, q_grad=0.9):
     fire_class_id = get_class_id_from_name(yaml_path, "fire")
-    images_dir = os.path.join(dataset_path, "test", "images")
-    labels_dir = os.path.join(dataset_path, "test", "labels")
+    images_dir = os.path.join(dataset_path, "val", "images")
+    labels_dir = os.path.join(dataset_path, "val", "labels")
     results = []
 
     print(f"\nEvaluating dataset at: {dataset_path}")
@@ -156,12 +156,12 @@ def evaluate_bbox_level(dataset_path, yaml_path, q_wave=0.9, q_grad=0.9):
         fused_mask, _ = fuse_and_draw_image(
             frame,
             m_wave2,
-            m_color,
+            prob_map,
             m_grad,
             w_wave=0.3,
-            w_color=0.9,
+            w_color=0.7,
             w_grad=0.2,
-            thresh=None,
+            thresh=0.7,
         )
 
         pred_boxes = extract_pred_bboxes_from_mask(fused_mask)

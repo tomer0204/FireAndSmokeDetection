@@ -3,7 +3,7 @@ import numpy as np
 import pywt
 
 
-def wavelet_mask_frame(gray, pct=0.9, levels=(2, 3), mask=None):
+def wavelet_mask_frame(gray, pct=0.9, levels=(1, 2), mask=None):
     if mask is not None:
         gray = cv2.bitwise_and(gray, gray, mask=mask)
 

@@ -13,16 +13,15 @@ from Backend.src.FireDetection.Images.Algorithms.ColorSpace.colorSpaceImage impo
 from Backend.src.FireDetection.Images.Algorithms.Gradient.gradientImage import (
     gradient_mask_frame_image,
 )
-from Backend.src.FireDetection.Images.Algorithms.HOG.HOG_Image import hog_fire_detection
 from Backend.src.FireDetection.Images.Algorithms.WaveletTransform.WaveletImage import (
     wavelet_mask_frame,
 )
 
-IMAGE_PATH = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Datasets/DatasetImages1/test/images/large_-514-_jpg.rf.408f1f3fdbde8fe64de7d158b78baf82.jpg"
+IMAGE_PATH = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Datasets/DatasetImages1/test/images/other_-215-_jpg.rf.42abbf004305b3ad4fd3e9730646e8d2.jpg"
 LABELS_DIR = "/Users/tedy/Desktop/FireAndSmokeDetection/Backend/Datasets/DatasetImages1/test/labels"
 OUTPUT_PATH = "image_result_panel.jpg"
-QWAVE = 0.95
-QGRAD = 0.95
+QWAVE = 0.9
+QGRAD = 0.9
 SHOW = True
 
 
@@ -37,7 +36,7 @@ def read_fire_bboxes(label_path):
             if len(parts) != 5:
                 continue
             cls, x, y, bw, bh = map(float, parts)
-            if int(cls) != 0:  # רק תווית אש
+            if int(cls) != 0:
                 continue
             boxes.append((x, y, bw, bh))
     return boxes
@@ -93,10 +92,8 @@ def main():
 
     m_color = color_mask_frame_image(frame)
     prob_map = color_prob_map_ycrcb(frame)
-    prob_gray = (prob_map * 255).astype(np.uint8)
     m_grad = gradient_mask_frame_image(gray, QGRAD)
-    _, m_hog = hog_fire_detection(frame)
-    masks = wavelet_mask_frame(gray, pct=QWAVE, levels=(1, 2, 3))
+    masks = wavelet_mask_frame(gray, pct=QWAVE, levels=(1, 2))
     m_wave2 = masks[2]
 
     fused_mask, out_bbox = fuse_and_draw_image(
@@ -105,9 +102,9 @@ def main():
         m_color,
         m_grad,
         w_wave=0.3,
-        w_color=0.9,
-        w_grad=0.1,
-        thresh=None,
+        w_color=0.7,
+        w_grad=0.2,
+        thresh=0.7,
     )
 
     panel = three_panel(
